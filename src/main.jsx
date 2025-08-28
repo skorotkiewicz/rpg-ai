@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { Route, Switch } from "wouter";
+import { Router, Route, Switch } from "wouter";
 import Layout from "./components/Layout";
 import HError from "./components/HError";
 import Welcome from "./pages/Welcome";
@@ -10,13 +10,15 @@ import "./index.css";
 const Root = () => {
   const AppWithRouter = (
     <Layout>
-      <Switch>
-        <Route path="/" component={Welcome} />
-        <Route path="/x/:id" component={GamePlay} />
-        <Route>
-          <HError error={404} />
-        </Route>
-      </Switch>
+      <Router base="/rpg-ai">
+        <Switch>
+          <Route path="/" component={Welcome} />
+          <Route path="/x/:id" component={GamePlay} />
+          <Route>
+            <HError error={404} />
+          </Route>
+        </Switch>
+      </Router>
     </Layout>
   );
 
