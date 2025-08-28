@@ -3,8 +3,10 @@ import { Settings, Gamepad2 } from "lucide-react";
 import ConfigPanel from "./ConfigPanel";
 import { useGameStore } from "../utils/store";
 import { puterModels } from "../utils/utils";
+import { useLocation } from "wouter";
 
 const Layout = ({ children }) => {
+  const [, navigate] = useLocation();
   const {
     isConfigOpen,
     setIsConfigOpen,
@@ -31,7 +33,10 @@ const Layout = ({ children }) => {
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-6xl mx-auto">
           <div className="flex justify-between items-center mb-8">
-            <h1 className="text-4xl font-bold text-white flex items-center gap-2">
+            <h1
+              onClick={() => navigate("/rpg-ai")}
+              className="text-4xl font-bold text-white flex items-center gap-2"
+            >
               <Gamepad2 className="w-8 h-8 text-blue-400" />
               AI Adventure Game
             </h1>
