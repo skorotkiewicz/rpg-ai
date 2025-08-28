@@ -11,10 +11,13 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.12",
     "idb-keyval": "^6.2.2",
+    "jsonrepair": "^3.13.0",
     "lucide-react": "^0.542.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "tailwindcss": "^4.1.12"
+    "tailwindcss": "^4.1.12",
+    "wouter": "^3.7.1",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.2",

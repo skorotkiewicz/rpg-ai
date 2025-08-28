@@ -18,6 +18,8 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { puterModels, puter, systemPrompt, fallbackResponse, gameLangs } from "./utils/utils";
+import { useParams, useLocation } from "wouter";
 
 const AIAdventureGame = () => {
   const [gameState, setGameState] = useState(null);
@@ -27,14 +29,17 @@ const AIAdventureGame = () => {
   const [ollamaUrl, setOllamaUrl] = useState("http://localhost:11434");
   const [modelName, setModelName] = useState("llama3.2:latest");
   const [availableModels, setAvailableModels] = useState([]);
-  const [gameLanguage, setGameLanguage] = useState("Polish");
+  const [gameLanguage, setGameLanguage] = useState("English");
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [inventory, setInventory] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [worldDescription, setWorldDescription] = useState("");
   const [savedGames, setSavedGames] = useState([]);
   const [messages, setMessages] = useState([]); // For chat history
+  const [backend, setBackend] = useState("ollama"); // New: ollama or puter
   const chatEndRef = useRef(null);
+  const params = useParams();
+  const [location, navigate] = useLocation();
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -45,13 +50,20 @@ const AIAdventureGame = () => {
   }, [gameHistory, gameState]);
 
   useEffect(() => {
-    if (isConfigOpen) {
+    if (isConfigOpen && backend === "ollama") {
       fetchAvailableModels();
+    } else if (backend === "puter") {
+      setAvailableModels(puterModels);
+      setModelName(puterModels[0]);
     }
-  }, [isConfigOpen, ollamaUrl]);
+  }, [isConfigOpen, ollamaUrl, backend]);
 
   useEffect(() => {
-    loadSavedGames();
+    if (!gameState && params.id) {
+      loadGame(params.id);
+    } else {
+      loadSavedGames();
+    }
   }, []);
 
   const fetchAvailableModels = async () => {
@@ -73,7 +85,9 @@ const AIAdventureGame = () => {
   };
 
   const saveGame = async () => {
-    const sessionId = `game-session-${Date.now()}`;
+    // const sessionId = `game-session-${Date.now()}`;
+    const sessionId = params.id;
+
     const gameData = {
       gameState,
       gameHistory,
@@ -97,50 +111,17 @@ const AIAdventureGame = () => {
       setGameLanguage(gameData.gameLanguage);
       setMessages(gameData.messages);
     }
+
+    if (location !== `/x/${sessionId}`) navigate(`/x/${sessionId}`);
   };
 
   const deleteGame = async (sessionId) => {
     await del(sessionId);
     await loadSavedGames();
+    navigate("/");
   };
 
-  const systemPrompt = `You are a creative game master for an interactive text adventure game. You must respond ONLY with valid JSON in this exact format:
-
-  {
-    "type": "text_input" or "choice" or "item_action",
-    "description": "detailed description of the current scene/situation",
-    "question": "question or prompt for the player",
-    "choices": ["option 1", "option 2"] (only if type is "choice", otherwise omit),
-    "svg_scene": "<svg viewBox=\\"0 0 300 200\\" class=\\"w-full h-48 bg-gradient-to-b from-sky-300 to-green-300 rounded\\"><!-- SVG elements here --></svg>",
-    "new_item": {
-      "name": "Item Name",
-      "description": "what it does",
-      "emoji": "📱"
-    } (only when player finds/gets new item, otherwise omit),
-    "context": "additional atmospheric context"
-  }
-
-  IMPORTANT: Respond entirely in ${gameLanguage}. All text fields must be in ${gameLanguage}.
-
-  Special Rules for SVG Scene:
-  - Generate a complete SVG code representing the current scene.
-  - Use viewBox="0 0 300 200"
-  - Include class="w-full h-48 bg-gradient-to-b from-sky-300 to-green-300 rounded"
-  - Always include a representation of the player at center (around x:150, y:100)
-  - Add 3-6 other elements around the player
-  - Use coordinates from 50 to 250 for x, 50 to 150 for y
-  - Add descriptive labels to important elements using <text>
-  - Make scenes feel alive and detailed
-  - You can use any SVG elements: circles, rects, paths, polygons, etc.
-  - Include background elements like sun, ground if appropriate
-
-  Item System:
-  - Use "item_action" type when player tries to use an inventory item
-  - Add "new_item" only when player finds/picks up something new
-  - Items can be anything: weapons, tools, food, magical objects, phones, keys, etc.
-  - Sometimes offer a third choice to pick up/interact with items`;
-
-  // Generate AI response using Ollama /api/chat
+  // Generate AI response
   const generateAIResponse = async (playerAction = null, initialDesc = null) => {
     const currentMessages = [...messages];
 
@@ -158,30 +139,47 @@ const AIAdventureGame = () => {
 
     currentMessages.push({ role: "user", content: userContent });
 
+    let aiResponse;
     try {
-      const response = await fetch(`${ollamaUrl}/api/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: modelName,
-          messages: [{ role: "system", content: systemPrompt }, ...currentMessages],
-          stream: false,
-          options: {
-            temperature: 0.8,
-            top_p: 0.9,
-            max_tokens: 800,
+      if (backend === "ollama") {
+        const response = await fetch(`${ollamaUrl}/api/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        }),
-      });
+          body: JSON.stringify({
+            model: modelName,
+            messages: [{ role: "system", content: systemPrompt(gameLanguage) }, ...currentMessages],
+            stream: false,
+            options: {
+              temperature: 0.8,
+              top_p: 0.9,
+              max_tokens: 800,
+            },
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        aiResponse = data.message.content.trim();
+      } else if (backend === "puter") {
+        // For Puter, build full prompt since it might not support multi-message
+        const fullPrompt =
+          systemPrompt(gameLanguage) +
+          "\n" +
+          currentMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n") +
+          "\nASSISTANT:";
+
+        // const fullPrompt = `${systemPrompt(gameLanguage)}\n${currentMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n")}\nASSISTANT:`;
+
+        const response = await puter.ai.chat(fullPrompt, { model: modelName });
+        console.log(response);
+        // if (!(await response.success)) throw new Error(`Puter AI error!`);
+        aiResponse = await response.message.content.trim();
       }
-
-      const data = await response.json();
-      const aiResponse = data.message.content.trim();
 
       // Extract JSON
       const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
@@ -208,17 +206,8 @@ const AIAdventureGame = () => {
 
       return gameResponse;
     } catch (error) {
-      console.error("Error calling Ollama API:", error);
+      console.error("Error calling AI API:", error);
 
-      // Fallback
-      const fallbackResponse = {
-        type: "text_input",
-        description:
-          "You find yourself in a mysterious place. The AI encountered an error, but your adventure continues...",
-        question: "What do you do?",
-        svg_scene: `<svg viewBox="0 0 300 200" class="w-full h-48 bg-gradient-to-b from-sky-300 to-green-300 rounded"><circle cx="150" cy="100" r="10" fill="#F59E0B"/><rect x="100" y="80" width="20" height="40" fill="#92400E"/><polygon points="150,20 100,100 200,100" fill="#6B7280"/></svg>`,
-        context: "Something went wrong with the storyteller, but the magic of adventure persists.",
-      };
       currentMessages.push({ role: "assistant", content: JSON.stringify(fallbackResponse) });
       setMessages(currentMessages);
       return fallbackResponse;
@@ -248,23 +237,28 @@ const AIAdventureGame = () => {
     setSelectedItem(null);
     setMessages([]);
 
-    // Test connection first
-    const connectionOk = await testOllamaConnection();
-    if (!connectionOk) {
-      alert(
-        "Cannot connect to Ollama API. Please check if Ollama is running and the URL is correct.",
-      );
-      setIsLoading(false);
-      return;
-    }
+    let connectionOk = true;
+    if (backend === "ollama") {
+      connectionOk = await testOllamaConnection();
+      if (!connectionOk) {
+        alert(
+          "Cannot connect to Ollama API. Please check if Ollama is running and the URL is correct.",
+        );
+        setIsLoading(false);
+        return;
+      }
+    } // For Puter, assume it's always available or add check if needed
 
     try {
       const initialState = await generateAIResponse(null, worldDescription);
       setGameState(initialState);
     } catch (error) {
       console.error("Error starting game:", error);
-      alert("Failed to start the game. Please check your Ollama setup.");
+      alert("Failed to start the game. Please check your setup.");
     }
+
+    navigate(`/x/game-session-${Date.now()}`);
+
     setIsLoading(false);
   };
 
@@ -356,17 +350,30 @@ const AIAdventureGame = () => {
                 <Settings className="w-5 h-5 text-blue-400" />
                 Configuration
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Ollama URL:</label>
-                  <input
-                    type="text"
-                    value={ollamaUrl}
-                    onChange={(e) => setOllamaUrl(e.target.value)}
+                  <label className="block text-sm font-medium mb-2">Backend:</label>
+                  <select
+                    value={backend}
+                    onChange={(e) => setBackend(e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500 text-gray-100"
-                    placeholder="http://localhost:11434"
-                  />
+                  >
+                    <option value="ollama">Ollama</option>
+                    <option value="puter">Puter</option>
+                  </select>
                 </div>
+                {backend === "ollama" && (
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Ollama URL:</label>
+                    <input
+                      type="text"
+                      value={ollamaUrl}
+                      onChange={(e) => setOllamaUrl(e.target.value)}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500 text-gray-100"
+                      placeholder="http://localhost:11434"
+                    />
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium mb-2">Model Name:</label>
                   <select
@@ -388,23 +395,22 @@ const AIAdventureGame = () => {
                     onChange={(e) => setGameLanguage(e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500 text-gray-100"
                   >
-                    <option value="English">English</option>
-                    <option value="Polish">Polish (Polski)</option>
-                    <option value="Spanish">Spanish (Español)</option>
-                    <option value="French">French (Français)</option>
-                    <option value="German">German (Deutsch)</option>
-                    <option value="Italian">Italian (Italiano)</option>
-                    <option value="Portuguese">Portuguese (Português)</option>
-                    <option value="Russian">Russian (Русский)</option>
-                    <option value="Japanese">Japanese (日本語)</option>
-                    <option value="Chinese">Chinese (中文)</option>
+                    {gameLangs.map((data, key) => (
+                      <option value={data.lang} key={key}>
+                        {data.lang} {data.lng && `(${data.lng})`}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
               <p className="text-sm text-gray-400 mt-3">
-                Make sure Ollama is running and the model is downloaded. Run:{" "}
-                <code className="bg-gray-700 px-2 py-1 rounded">ollama pull {modelName}</code>
-                <br />
+                {backend === "ollama" && (
+                  <>
+                    Make sure the backend is running and the model is available. For Ollama:{" "}
+                    <code className="bg-gray-700 px-2 py-1 rounded">ollama pull {modelName}</code>
+                    <br />
+                  </>
+                )}
                 The AI will generate all game content in <strong>{gameLanguage}</strong>.
               </p>
             </div>
