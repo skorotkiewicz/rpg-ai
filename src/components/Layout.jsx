@@ -35,7 +35,7 @@ const Layout = ({ children }) => {
           <div className="flex justify-between items-center mb-8">
             <h1
               onClick={() => navigate("/rpg-ai")}
-              className="text-4xl font-bold text-white flex items-center gap-2"
+              className="text-4xl font-bold text-white flex items-center gap-2 cursor-pointer"
             >
               <Gamepad2 className="w-8 h-8 text-blue-400" />
               AI Adventure Game

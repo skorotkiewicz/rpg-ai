@@ -64,9 +64,6 @@ const puterModels = [
   "o4-mini",
 ];
 
-const getPuter = () => (typeof window !== "undefined" && window.puter ? window.puter : null);
-const puter = getPuter();
-
 const systemPrompt = (gameLanguage) => {
   return `You are a creative game master for an interactive text adventure game. You must respond ONLY with valid JSON in this exact format:
 
@@ -128,4 +125,4 @@ const gameLangs = [
   { lang: "Chinese", lng: "中文" },
 ];
 
-export { puterModels, puter, systemPrompt, fallbackResponse, gameLangs };
+export { puterModels, systemPrompt, fallbackResponse, gameLangs };

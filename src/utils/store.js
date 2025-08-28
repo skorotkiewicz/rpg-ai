@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { puter, systemPrompt, fallbackResponse } from "./utils";
+import { systemPrompt, fallbackResponse } from "./utils";
 import { set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
 // import { jsonrepair } from "jsonrepair";
 
@@ -27,6 +27,7 @@ if (!localStorage.getItem("rpg-ai")) {
 }
 
 const initialConfig = JSON.parse(localStorage.getItem("rpg-ai") || "{}");
+const getPuter = () => (typeof window !== "undefined" && window.puter ? window.puter : null);
 
 const useGameStore = create(
   devtools((set, get) => ({
@@ -42,6 +43,7 @@ const useGameStore = create(
     worldDescription: "",
     savedGames: [],
     messages: [],
+    puter: getPuter(),
 
     setGameState: (value) => set({ gameState: value }),
     setIsLoading: (value) => set({ isLoading: value }),
