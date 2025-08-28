@@ -86,6 +86,7 @@ const useGameStore = create(
         if (response.ok) {
           const data = await response.json();
           set({ availableModels: data.models.map((model) => model.name) });
+          set({ modelName: data.models[0].name });
         }
       } catch (error) {
         console.error("Failed to fetch models:", error);
