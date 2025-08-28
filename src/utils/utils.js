@@ -64,6 +64,8 @@ const puterModels = [
   "o4-mini",
 ];
 
+const geminiModels = ["gemini-1.5-flash", "gemini-2.5-flash"];
+
 const systemPrompt = (gameLanguage) => {
   return `You are a creative game master for an interactive text adventure game. You must respond ONLY with valid JSON in this exact format:
 
@@ -112,6 +114,15 @@ const fallbackResponse = {
   context: "Something went wrong with the storyteller, but the magic of adventure persists.",
 };
 
+const fullPrompt = (gameLanguage, currentMessages) => {
+  return (
+    systemPrompt(gameLanguage) +
+    "\n" +
+    currentMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n") +
+    "\nASSISTANT:"
+  );
+};
+
 const gameLangs = [
   { lang: "English", lng: null },
   { lang: "Polish", lng: "Polski" },
@@ -125,4 +136,4 @@ const gameLangs = [
   { lang: "Chinese", lng: "中文" },
 ];
 
-export { puterModels, systemPrompt, fallbackResponse, gameLangs };
+export { puterModels, geminiModels, systemPrompt, fallbackResponse, gameLangs, fullPrompt };

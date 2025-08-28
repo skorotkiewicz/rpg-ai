@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Settings, Gamepad2 } from "lucide-react";
 import ConfigPanel from "./ConfigPanel";
 import { useGameStore } from "../utils/store";
-import { puterModels } from "../utils/utils";
+import { puterModels, geminiModels } from "../utils/utils";
 import { useLocation } from "wouter";
 
 const Layout = ({ children }) => {
@@ -24,6 +24,9 @@ const Layout = ({ children }) => {
       } else if (backend === "puter") {
         setAvailableModels(puterModels);
         setModelName(puterModels[0]);
+      } else if (backend === "gemini") {
+        setAvailableModels(geminiModels);
+        setModelName(geminiModels[0]);
       }
     }
   }, [isConfigOpen, ollamaUrl, backend]);

@@ -13,6 +13,8 @@ const ConfigPanel = () => {
     availableModels,
     gameLanguage,
     setGameLanguage,
+    geminiKey,
+    setGeminiKey,
   } = useGameStore();
 
   return (
@@ -31,6 +33,7 @@ const ConfigPanel = () => {
           >
             <option value="ollama">Ollama</option>
             <option value="puter">Puter</option>
+            <option value="gemini">Gemini</option>
           </select>
         </div>
         {backend === "ollama" && (
@@ -42,6 +45,18 @@ const ConfigPanel = () => {
               onChange={(e) => setOllamaUrl(e.target.value)}
               className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500 text-gray-100"
               placeholder="http://localhost:11434"
+            />
+          </div>
+        )}
+        {backend === "gemini" && (
+          <div>
+            <label className="block text-sm font-medium mb-2">Gemini API:</label>
+            <input
+              type="text"
+              value={geminiKey}
+              onChange={(e) => setGeminiKey(e.target.value)}
+              className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500 text-gray-100"
+              placeholder="Gemini API Key..."
             />
           </div>
         )}
@@ -79,6 +94,21 @@ const ConfigPanel = () => {
           <>
             Make sure the backend is running and the model is available. For Ollama:{" "}
             <code className="bg-gray-700 px-2 py-1 rounded">ollama pull {modelName}</code>
+            <br />
+          </>
+        )}
+        {backend === "gemini" && (
+          <>
+            Go to{" "}
+            <a
+              href="https://aistudio.google.com/app/apikey"
+              target="_blank"
+              rel="noopener"
+              className="bg-gray-700 m-1 px-1 rounded"
+            >
+              Google AI Studio
+            </a>{" "}
+            to get your API Key.
             <br />
           </>
         )}

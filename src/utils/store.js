@@ -2,8 +2,9 @@
 
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { systemPrompt, fallbackResponse } from "./utils";
+import { systemPrompt, fallbackResponse, fullPrompt } from "./utils";
 import { set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 // import { jsonrepair } from "jsonrepair";
 
 function updateConfig(partialUpdate) {
@@ -22,6 +23,7 @@ if (!localStorage.getItem("rpg-ai")) {
       modelName: "llama3.2:latest",
       gameLanguage: "English",
       backend: "ollama",
+      geminiKey: "",
     }),
   );
 }
@@ -71,6 +73,10 @@ const useGameStore = create(
     setBackend: (value) => {
       updateConfig({ backend: value });
       set({ backend: value });
+    },
+    setGeminiKey: (value) => {
+      updateConfig({ geminiKey: value });
+      set({ geminiKey: value });
     },
 
     fetchAvailableModels: async () => {
@@ -124,7 +130,7 @@ const useGameStore = create(
     },
 
     generateAIResponse: async (playerAction = null, initialDesc = null) => {
-      const { messages, inventory, backend, modelName, ollamaUrl, gameLanguage } = get();
+      const { messages, inventory, backend, modelName, ollamaUrl, gameLanguage, geminiKey } = get();
       const currentMessages = [...messages];
 
       const inventoryContext =
@@ -174,14 +180,19 @@ const useGameStore = create(
 
           // -- PUTER
         } else if (backend === "puter") {
-          const fullPrompt =
-            systemPrompt(gameLanguage) +
-            "\n" +
-            currentMessages.map((m) => `${m.role.toUpperCase()}: ${m.content}`).join("\n\n") +
-            "\nASSISTANT:";
+          const response = await puter.ai.chat(fullPrompt(gameLanguage, currentMessages), {
+            model: modelName,
+          });
 
-          const response = await puter.ai.chat(fullPrompt, { model: modelName });
           aiResponse = response.message.content?.trim();
+
+          // -- GEMINI
+        } else if (backend === "gemini") {
+          const genAI = new GoogleGenerativeAI(geminiKey);
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent(fullPrompt(gameLanguage, currentMessages));
+
+          aiResponse = result.response.text()?.trim();
         }
 
         // aiResponse = jsonrepair(aiResponse);
