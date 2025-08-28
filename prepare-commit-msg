@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+# Make this file executable: chmod +x .git/hooks/prepare-commit-msg
+
+echo "Running prepare-commit-msg hook"
+COMMIT_MSG_FILE="$1"
+
+# Get the staged diff
+DIFF=$(git diff --cached)
+
+# Generate a summary with ollama CLI and gemma3 model
+SUMMARY=$(
+  ollama run gemma3 <<EOF
+Generate a raw text commit message for the following diff.
+Keep commit message concise and to the point.
+Make the first line the title (100 characters max) and the rest the body:
+$DIFF
+EOF
+)
+
+if [ -f "$COMMIT_MSG_FILE" ]; then
+  # Save the AI generated summary to the commit message file
+  echo "$SUMMARY" >"$COMMIT_MSG_FILE"
+  # Append existing message if it exists
+  if [ -n "$EXISTING_MSG" ]; then
+    echo "" >>"$COMMIT_MSG_FILE"
+    echo "$EXISTING_MSG" >>"$COMMIT_MSG_FILE"
+  fi
+fi
