@@ -73,7 +73,9 @@ const Welcome = () => {
                     </button>
                     <button
                       type="button"
-                      onClick={() => deleteGame(key)}
+                      onClick={() => {
+                        if (confirm("Delete this game?")) deleteGame(key);
+                      }}
                       className="bg-red-600 hover:bg-red-700 px-3 py-1 rounded flex items-center gap-1 text-sm"
                     >
                       <Trash2 className="w-4 h-4" />
